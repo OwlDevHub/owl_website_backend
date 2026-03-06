@@ -39,10 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!response.ok) {
       return res
         .status(500)
-        .json({ error: "Telegram API Error", details: responseData });
+        .json({ error: "Telegram API Error" });
     }
 
-    return res.status(200).json({ message: "OK", details: responseData });
+    return res.status(200).json({ message: "OK" });
   } catch (error) {
     if (error instanceof Error) {
       console.error("Server Error:", error);

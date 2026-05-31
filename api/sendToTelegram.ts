@@ -23,8 +23,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Email is required" });
   }
 
-  const message = formatTelegramMessage(req.body);
-
+  const message = formatTelegramMessage({
+    email,
+    ipAddress,
+    timezone,
+    deviceInfo,
+  });
   const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
   try {
@@ -39,27 +43,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const responseData = await response.json();
+
     console.log("Telegram API response:", responseData);
 
     if (!response.ok) {
-      return res
-        .status(500)
-        .json({ error: "Telegram API Error", details: responseData });
+      return res.status(500).json({ error: "Failed to send notification" });
     }
 
-    return res.status(200).json({ message: "OK" });
+    return res.status(200).json({ success: true });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Server Error:", error);
-      return res
-        .status(500)
-        .json({ error: "Server Error", details: error.message });
-    } else {
-      console.error("Unknown Error:", error);
-      return res
-        .status(500)
-        .json({ error: "Server Error", details: "An unknown error occurred" });
-    }
+    console.error("Server Error:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -80,7 +74,7 @@ function formatTelegramMessage(data: any): string {
   message += `💻 <b>Device Information:</b>\n`;
   message += `├─ <b>Device Type:</b> ${escapeHtml(deviceInfo?.deviceType || "Unknown")}\n`;
   message += `├─ <b>OS:</b> ${escapeHtml(deviceInfo?.os || "Unknown")} ${escapeHtml(deviceInfo?.osVersion || "")}\n`;
-  message += `├─ <b>Browser:</b> ${escapeHtml(deviceInfo?.browserName || "Unknown")} ${escapeHtml(deviceInfo?.browserVersion || "")}\n`;
+  message += `├─ <b>Browser:</b> ${escapeHtml(deviceInfo?.browserName || "Unknown")} ${escapeHtml(deviceInfo?.browserVersion || "Unknown")}\n`;
   message += `├─ <b>Platform:</b> ${escapeHtml(deviceInfo?.platform || "Unknown")}\n`;
   message += `└─ <b>Language:</b> ${escapeHtml(deviceInfo?.language || "Unknown")}\n\n`;
 
@@ -98,7 +92,7 @@ function formatTelegramMessage(data: any): string {
     message += `├─ <b>User Agent:</b> ${escapeHtml(browser.userAgent.substring(0, 100))}${browser.userAgent.length > 100 ? "..." : ""}\n`;
     message += `├─ <b>Cookies Enabled:</b> ${browser.cookieEnabled ? "✅ Yes" : "❌ No"}\n`;
     message += `├─ <b>Hardware Concurrency:</b> ${browser.hardwareConcurrency || "Unknown"} cores\n`;
-    message += `├─ <b>Device Memory:</b> ${browser.deviceMemory ? browser.deviceMemory + " GB" : "Unknown"}\n`;
+    message += `├─ <b>Device Memory:</b> ${browser.deviceMemory !== "unknown" ? browser.deviceMemory + " GB" : "Unknown"}\n`;
     message += `├─ <b>Max Touch Points:</b> ${browser.maxTouchPoints || 0}\n`;
     message += `├─ <b>Mobile Device:</b> ${browser.isMobile ? "✅ Yes" : "❌ No"}\n`;
     message += `└─ <b>Tablet Device:</b> ${browser.isTablet ? "✅ Yes" : "❌ No"}\n\n`;
@@ -110,18 +104,16 @@ function formatTelegramMessage(data: any): string {
     message += `├─ <b>Downlink:</b> ${network.downlink ? network.downlink + " Mbps" : "Unknown"}\n`;
     message += `├─ <b>RTT:</b> ${network.rtt ? network.rtt + " ms" : "Unknown"}\n`;
     message += `└─ <b>Save Data Mode:</b> ${network.saveData ? "✅ Enabled" : "❌ Disabled"}\n\n`;
+  } else {
+    message += `🌍 <b>Network Information:</b>\n`;
+    message += `└─ Not available\n\n`;
   }
 
-  if (performance.pageLoadTime) {
+  if (performance.pageLoadTime && performance.pageLoadTime > 0) {
     message += `⚡ <b>Performance:</b>\n`;
     message += `├─ <b>Page Load Time:</b> ${performance.pageLoadTime} ms\n`;
     if (performance.domReadyTime) {
-      message += `├─ <b>DOM Ready Time:</b> ${performance.domReadyTime} ms\n`;
-    }
-    if (performance.usedJSHeapSize) {
-      const usedHeapMB = Math.round(performance.usedJSHeapSize / 1048576);
-      const totalHeapMB = Math.round(performance.totalJSHeapSize / 1048576);
-      message += `└─ <b>JS Memory Usage:</b> ${usedHeapMB} MB / ${totalHeapMB} MB\n`;
+      message += `└─ <b>DOM Ready Time:</b> ${performance.domReadyTime} ms\n`;
     }
     message += `\n`;
   }
@@ -141,6 +133,7 @@ function formatTelegramMessage(data: any): string {
 
 function escapeHtml(text: string): string {
   if (!text) return "Unknown";
+  if (typeof text !== "string") return String(text);
 
   const map: { [key: string]: string } = {
     "&": "&amp;",

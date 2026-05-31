@@ -17,13 +17,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "The method is not supported" });
   }
 
-  const { email, deviceInfo } = req.body;
+  const { email, deviceInfo, timezone } = req.body;
 
-  if (!email || !deviceInfo) {
+  if (!email || !deviceInfo || !timezone) {
     return res.status(400).json({ error: "Insufficient data" });
   }
 
-  const message = `New user on the waiting list:\nEmail: ${email}\nDevice: ${deviceInfo}`;
+  const message = `New user on the waiting list:\nEmail: ${email}\nDevice: ${deviceInfo}\nTimezone: ${timezone}`;
   const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
   try {
@@ -37,9 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("Telegram API response:", responseData);
 
     if (!response.ok) {
-      return res
-        .status(500)
-        .json({ error: "Telegram API Error" });
+      return res.status(500).json({ error: "Telegram API Error" });
     }
 
     return res.status(200).json({ message: "OK" });

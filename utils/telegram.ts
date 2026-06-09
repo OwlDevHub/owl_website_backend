@@ -90,7 +90,13 @@ export async function sendTelegramMessage(
   };
 
   if (topicId) {
-    payload.message_thread_id = parseInt(topicId, 10);
+    const topicIdNumber = parseInt(topicId, 10);
+    if (!isNaN(topicIdNumber)) {
+      payload.message_thread_id = topicIdNumber;
+      console.log(`Sending to topic ID: ${topicIdNumber}`);
+    } else {
+      console.error(`Invalid topicId format: "${topicId}" - not a number`);
+    }
   }
 
   const response = await fetch(url, {
